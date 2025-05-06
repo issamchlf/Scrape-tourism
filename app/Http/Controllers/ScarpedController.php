@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\scarped;
 use Illuminate\Http\Request;
+use spatie\Crawler\Crawler;
+
 
 class ScarpedController extends Controller
 {
