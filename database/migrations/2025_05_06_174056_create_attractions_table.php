@@ -13,6 +13,13 @@ return new class extends Migration
     {
         Schema::create('attractions', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->string('description');
+            $table->string('address');
+            $table->string('latitude');
+            $table->string('longitude');
+            $table->string('website_url')->nullable();
+            $table->string('images')->nullable();
             $table->timestamps();
         });
     }
