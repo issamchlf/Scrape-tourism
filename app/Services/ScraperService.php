@@ -4,6 +4,8 @@ namespace App\Services;
 
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\DomCrawler\Crawler;
+use Spatie\Crawler\Crawler as SpatieCrawler;
+use Spatie\Crawler\CrawlObservers\CrawlObserver;
 
 class ScraperService
 {
@@ -24,5 +26,11 @@ class ScraperService
 
         }
         return $data;
+    }
+    public function scrapeWithSpatie(string $startUrl, CrawlObserver $observer): void
+    {
+        SpatieCrawler::create()
+            ->setCrawlObserver($observer)
+            ->startCrawling($startUrl);
     }
 }
