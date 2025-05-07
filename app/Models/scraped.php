@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class scarped extends Model
+class scraped extends Model
 {
     protected $fillable = [
         'url',

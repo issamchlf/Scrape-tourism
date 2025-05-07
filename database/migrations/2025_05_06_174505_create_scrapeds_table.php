@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('scarpeds', function (Blueprint $table) {
+        Schema::create('scrapeds', function (Blueprint $table) {
             $table->id();
             $table->string('url')->nullable();
             $table->enum('status', ['pending', 'succes', 'rejected'])->default('pending')->comment('pending, approved, rejected');
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('scarpeds');
+        Schema::dropIfExists('scrapeds');
     }
 };

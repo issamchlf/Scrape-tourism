@@ -2,64 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\scarped;
+use App\Models\Scraped;
 use App\Models\attraction;
 use Illuminate\Http\Request;
+use App\Services\ScraperService;
 
 class AttractionController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+   protected ScraperService $scraper;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function __construct(ScraperService $scraper)
     {
-        //
+         $this->scraper = $scraper;
     }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function createFromScrape($pageId)
     {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(attraction $attraction)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(attraction $attraction)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, attraction $attraction)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(attraction $attraction)
-    {
-        //
+        $page = Scraped::findOrFail($pageId);
+        $data = $page->data_raw;
+        return view('attractions.create', compact('data'));
     }
 }

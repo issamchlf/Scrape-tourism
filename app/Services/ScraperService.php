@@ -7,6 +7,7 @@ use Symfony\Component\DomCrawler\Crawler;
 use Spatie\Crawler\Crawler as SpatieCrawler;
 use Spatie\Crawler\CrawlObservers\CrawlObserver;
 
+
 class ScraperService
 {
     /**
