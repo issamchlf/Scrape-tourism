@@ -1,25 +1,52 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Models\scarped;
-use App\Models\Scraped;
-use App\Models\attraction;
+use App\Models\Attraction;
 use Illuminate\Http\Request;
-use App\Services\ScraperService;
 
 class AttractionController extends Controller
 {
-   protected ScraperService $scraper;
-
-    public function __construct(ScraperService $scraper)
+    /**
+     * Show the “create” form, pre‑filled with scraped data.
+     */
+    public function create(Request $request)
     {
-         $this->scraper = $scraper;
+        $data = session('scrapedData', []);
+        $url  = session('scrapedUrl', '');
+        return view('attractions.create', compact('data','url'));
     }
-    public function createFromScrape($pageId)
+
+    /**
+     * Persist the attraction to the database.
+     */
+    public function store(Request $request)
     {
-        $page = Scraped::findOrFail($pageId);
-        $data = $page->data_raw;
-        return view('attractions.create', compact('data'));
+        $attrs = $request->validate([
+            'name'        => 'required|string',
+            'description' => 'nullable|string',
+            'address'     => 'nullable|string',
+            'phone'       => 'nullable|string',
+            'hours'       => 'nullable|string',
+            'website_url' => 'required|url',
+        ]);
+
+        // Upsert by URL
+        $attraction = Attraction::updateOrCreate(
+            ['website_url' => $attrs['website_url']],
+            $attrs
+        );
+
+        return redirect()
+            ->route('attractions.show', $attraction)
+            ->with('success','Attraction saved!');
+    }
+
+    /**
+     * Optional: show a saved attraction.
+     */
+    public function show(Attraction $attraction)
+    {
+        return view('attractions.show', compact('attraction'));
     }
 }
+

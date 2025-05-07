@@ -7,8 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class scraped extends Model
 {
     protected $fillable = [
-        'url',
-        'status',
-        'last_scraped_at',
+        'site_key','url','status','data_raw','last_scraped_at'
+    ];
+    protected $casts = [
+        'data_raw'       => 'array',
+        'last_scraped_at'=> 'datetime',
     ];
 }

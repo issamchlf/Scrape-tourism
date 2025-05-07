@@ -1,35 +1,37 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scrape a Tourism URL</title>
+  <meta charset="utf-8">
+  <title>Run Scrape</title>
 </head>
 <body>
-    <h1>Scrape a Tourism URL</h1>
+  <h1>Run Scrape</h1>
 
-    <form action="{{ route('scraped-pages.store') }}" method="POST">
-        @csrf
+  @if($errors->any())
+    <div style="color:red">
+      <ul>@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+    </div>
+  @endif
 
-        <div>
-            <label for="site_key">Site Key</label>
-            <select name="site_key" id="site_key" required>
-                <option value="esmadrid">EsMadrid</option>
-                <option value="marbella">turismo.marbella.es</option>
-            </select>
-        </div>
-        <div>
-            <label for="url">Page URL</label>
-            <input type="url" name="url" id="url"
-                         placeholder="https://www.esmadrid.com/..." required>
-        </div>
+  <form action="{{ route('scraped-pages.store') }}" method="POST">
+    @csrf
 
-        <button type="submit">Run Scrape</button>
-    </form>
-    @if(isset($scrapedData))
-  <h2>Raw Scrape Result for {{ $scrapedUrl }}</h2>
-  <pre>{{ json_encode($scrapedData, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES) }}</pre>
-@endif
+    <label>Site Key:</label>
+    <select name="site_key">
+      @foreach(config('scrapers.sites') as $key => $url)
+        <option value="{{ $key }}" @selected(old('site_key')==$key)>{{ $key }}</option>
+      @endforeach
+    </select><br><br>
 
+    <label>URL:</label>
+    <input type="url" name="url" value="{{ old('url') }}" required style="width:400px"><br><br>
+
+    <button type="submit">Run Scrape</button>
+  </form>
+
+  @isset($scrapedData)
+    <h2>Results for {{ $scrapedUrl }}</h2>
+    <pre>{{ json_encode($scrapedData, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES) }}</pre>
+  @endisset
 </body>
 </html>

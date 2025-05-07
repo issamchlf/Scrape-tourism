@@ -13,8 +13,10 @@ return new class extends Migration
     {
         Schema::create('scrapeds', function (Blueprint $table) {
             $table->id();
+            $table->string('site_key')->nullable()->comment('unique key for the site');
             $table->string('url')->nullable();
-            $table->enum('status', ['pending', 'succes', 'rejected'])->default('pending')->comment('pending, approved, rejected');
+            $table->enum('status', ['pending', 'success', 'rejected'])->default('pending')->comment('pending, success, rejected');
+            $table->json('data_raw')->nullable()->comment('raw data in JSON format');
             $table->timestamp('last_scraped_at')->nullable()->comment('last time the attraction was scraped');
             $table->timestamps();
         });
