@@ -10,69 +10,93 @@ use Spatie\Crawler\CrawlObservers\CrawlObserver;
 class ScraperService
 {
     /**
-     * Fetch page HTML and return a Crawler instance.
+     * Fetch page HTML, detect encoding via <meta> or headers, normalize to UTF-8, then return Crawler.
      */
     public function fetchCrawler(string $url): Crawler
     {
-        $client = HttpClient::create();
-        $html   = $client->request('GET', $url)->getContent();
+        $client   = HttpClient::create();
+        $response = $client->request('GET', $url);
+        $html     = $response->getContent();
+
+        // 1) Try to detect charset from <meta charset="...">
+        if (preg_match('/<meta[^>]+charset=["\']?([^"\'>]+)/i', $html, $matches)) {
+            $sourceCharset = strtoupper($matches[1]);
+        }
+        // 2) Fallback: detect from Content-Type header
+        elseif (!empty($response->getHeaders()['content-type'][0]) 
+            && preg_match('/charset=([^;\s]+)/i', $response->getHeaders()['content-type'][0], $matches2))
+        {
+            $sourceCharset = strtoupper($matches2[1]);
+        } else {
+            $sourceCharset = 'UTF-8';
+        }
+
+        // Normalize to UTF-8
+        $html = mb_convert_encoding($html, 'UTF-8', $sourceCharset);
+        // Decode HTML entities (e.g. &aacute; → á)
+        $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         return new Crawler($html);
     }
 
     /**
-     * Layered scrape: JSON-LD → OpenGraph → Microdata → CSS selectors
+     * Extract JSON-LD data for tourism types.
+     */
+    protected function extractJsonLd(Crawler $crawler): array
+    {
+        $data = [];
+        $crawler->filter('script[type="application/ld+json"]')->each(function (Crawler $node) use (&$data) {
+            $jsonText = $node->text();
+            $json     = json_decode($jsonText, true);
+            if (! $json) {
+                return; // invalid JSON, skip
+            }
+
+            $items = $json['@graph'] ?? [$json];
+            foreach ($items as $item) {
+                $type = $item['@type'] ?? '';
+                if (in_array($type, ['TouristAttraction','LocalBusiness','Hotel','LodgingBusiness','TouristDestination'])) {
+                    $data['name']        = $item['name']        ?? null;
+                    $data['description'] = $item['description'] ?? null;
+                    if (!empty($item['address'])) {
+                        $addr = $item['address'];
+                        $data['address'] = is_array($addr)
+                            ? ($addr['streetAddress'] ?? null)
+                            : $addr;
+                    }
+                    if (!empty($item['geo'])) {
+                        $data['latitude']  = $item['geo']['latitude']  ?? null;
+                        $data['longitude'] = $item['geo']['longitude'] ?? null;
+                    }
+                    return; // stop after first match
+                }
+            }
+        });
+        return $data;
+    }
+
+    /**
+     * Main scrape method: JSON-LD → OpenGraph → Microdata → CSS
      */
     public function scrape(string $url, array $selectors): array
     {
         $crawler = $this->fetchCrawler($url);
-        $data    = [];
+        $data    = $this->extractJsonLd($crawler);
 
-        // 1) JSON-LD
-        try {
-            $node = $crawler->filter('script[type="application/ld+json"]')->first();
-            if ($node->count()) {
-                $json  = json_decode($node->text(), true);
-                $items = $json['@graph'] ?? [$json];
-                foreach ($items as $item) {
-                    $type = $item['@type'] ?? '';
-                    if (in_array($type, ['TouristAttraction','LocalBusiness','Hotel','LodgingBusiness'])) {
-                        $data['name']        = $item['name']        ?? null;
-                        $data['description'] = $item['description'] ?? null;
-                        if (isset($item['address'])) {
-                            $addr = $item['address'];
-                            $data['address'] = is_array($addr)
-                                ? ($addr['streetAddress'] ?? null)
-                                : $addr;
-                        }
-                        if (isset($item['geo'])) {
-                            $data['latitude']  = $item['geo']['latitude']  ?? null;
-                            $data['longitude'] = $item['geo']['longitude'] ?? null;
-                        }
-                        break;
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            // ignore JSON-LD errors
-        }
-
-        // 2) OpenGraph
+        // OpenGraph fallback
         $data['name']        ??= $this->getMeta($crawler, 'property', 'og:title');
         $data['description'] ??= $this->getMeta($crawler, 'name',     'description');
 
-        // 3) Microdata
+        // Microdata fallback
         $data['name']    ??= $this->getItemProp($crawler, 'name');
         $data['address'] ??= $this->getItemProp($crawler, 'address');
 
-        // 4) CSS selectors fallback
+        // CSS selectors fallback
         foreach ($selectors as $key => $css) {
             if (empty($data[$key])) {
                 try {
                     $node = $crawler->filter($css);
-                    $data[$key] = $node->count()
-                        ? trim($node->first()->text())
-                        : null;
+                    $data[$key] = $node->count() ? trim($node->first()->text()) : null;
                 } catch (\InvalidArgumentException $e) {
                     $data[$key] = null;
                 }
@@ -83,29 +107,25 @@ class ScraperService
     }
 
     /**
-     * Simple CSS-only scrape (DomCrawler)
+     * Simple CSS-only scrape
      */
     public function scrapeWithDomCrawler(string $url, array $selectors): array
     {
         $crawler = $this->fetchCrawler($url);
         $data    = [];
-
         foreach ($selectors as $key => $css) {
             try {
                 $node = $crawler->filter($css);
-                $data[$key] = $node->count()
-                    ? trim($node->first()->text())
-                    : null;
+                $data[$key] = $node->count() ? trim($node->first()->text()) : null;
             } catch (\InvalidArgumentException $e) {
                 $data[$key] = null;
             }
         }
-
         return $data;
     }
 
     /**
-     * Dispatch a Spatie Crawler for deep or concurrent crawling
+     * Concurrent crawler
      */
     public function scrapeWithSpatie(string $startUrl, CrawlObserver $observer): void
     {
@@ -114,9 +134,7 @@ class ScraperService
             ->startCrawling($startUrl);
     }
 
-    /**
-     * Helper: get meta content by attribute
-     */
+    /** Helper: read meta tag content **/
     protected function getMeta(Crawler $crawler, string $attr, string $key): ?string
     {
         try {
@@ -126,16 +144,12 @@ class ScraperService
         }
     }
 
-    /**
-     * Helper: get microdata text by itemprop
-     */
+    /** Helper: read microdata **/
     protected function getItemProp(Crawler $crawler, string $prop): ?string
     {
         try {
             $node = $crawler->filter("[itemprop='{$prop}']");
-            return $node->count()
-                ? trim($node->first()->text())
-                : null;
+            return $node->count() ? trim($node->first()->text()) : null;
         } catch (\InvalidArgumentException $e) {
             return null;
         }
