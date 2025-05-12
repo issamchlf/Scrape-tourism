@@ -13,10 +13,14 @@ class attraction extends Model
         'latitude',
         'longitude',
         'website_url',
+        'images',
         'status'
     ];
     protected $casts = [
-        'images' => 'array',    ];
+        'images' => 'array',
+        'latitude' => 'float',
+        'longitude' => 'float'
+    ];
 
     public function reviews()
     {
