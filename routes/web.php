@@ -14,5 +14,9 @@ Route::post('/scraped-pages', [ScrapedController::class, 'store'])
      ->name('scraped-pages.store');
 
 
-Route::resource('attractions', AttractionController::class)
-     ->only(['create','store','show']);
+     Route::get('/attractions', [AttractionController::class,'index'])
+     ->name('attractions.index');
+Route::get('/attractions/{attraction}', [AttractionController::class,'show'])
+     ->name('attractions.show');
+
+Route::get('/', [AttractionController::class, 'index'])->name('attractions.index');
